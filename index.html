@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RailBook — Train Ticket Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14181a;
+    --panel:#1e2427;
+    --panel-2:#232a2d;
+    --line:#333c3f;
+    --amber:#e8a33d;
+    --amber-dim:#8a6a2e;
+    --signal:#c1392b;
+    --cream:#f2e9d8;
+    --ink:#0e0f10;
+    --text:#e9e6df;
+    --muted:#9aa5a0;
+    --green:#3d6b52;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+  ::selection{ background:var(--amber); color:var(--ink); }
+  a{color:inherit;}
+  h1,h2,h3{font-family:'DM Serif Display', serif; font-weight:400; margin:0;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  /* ---------- rail stripe header ---------- */
+  .railstripe{
+    height:6px;
+    background:repeating-linear-gradient(90deg, var(--amber) 0 28px, transparent 28px 40px);
+    opacity:.85;
+  }
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 5vw 18px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand .mark{
+    width:34px;height:34px;border-radius:50%;
+    background:var(--amber); color:var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono'; font-weight:600; font-size:15px;
+  }
+  .brand h1{ font-size:26px; letter-spacing:.3px;}
+  .brand span{ display:block; font-size:11px; letter-spacing:2.5px; color:var(--muted); font-family:'IBM Plex Mono';}
+  nav.clock{ font-family:'IBM Plex Mono'; color:var(--muted); font-size:13px; text-align:right;}
+  nav.clock b{ color:var(--amber); display:block; font-size:18px; letter-spacing:1px;}
+
+  /* ---------- hero / search ---------- */
+  .hero{ padding:56px 5vw 40px; max-width:1200px; margin:0 auto;}
+  .hero h2{ font-size:clamp(28px,4vw,44px); max-width:680px; line-height:1.15;}
+  .hero p.lede{ color:var(--muted); max-width:520px; margin-top:14px; font-size:15px; line-height:1.6;}
+
+  .ticket-window{
+    margin-top:36px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:26px 26px 22px;
+    position:relative;
+  }
+  .ticket-window::before{
+    content:"SEARCH · BOOK · TRAVEL";
+    position:absolute; top:-11px; left:26px;
+    background:var(--bg); padding:0 10px;
+    font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:3px; color:var(--amber-dim);
+  }
+  .searchgrid{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr 1fr 1fr auto;
+    gap:16px;
+    align-items:end;
+  }
+  @media (max-width:900px){ .searchgrid{ grid-template-columns:1fr 1fr; } }
+  .field label{ display:block; font-size:11px; letter-spacing:1.6px; color:var(--muted); margin-bottom:8px; text-transform:uppercase;}
+  .field select, .field input{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:11px 10px; border-radius:3px; font-family:'IBM Plex Mono'; font-size:14px;
+  }
+  .field select:focus, .field input:focus{ outline:2px solid var(--amber); outline-offset:1px; border-color:var(--amber);}
+  .swap-btn{
+    width:38px;height:38px;border-radius:50%;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--amber);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    align-self:center; font-size:16px;
+  }
+  .swap-btn:hover{ border-color:var(--amber); }
+  .search-btn{
+    background:var(--amber); color:var(--ink); border:none; border-radius:3px;
+    padding:12px 20px; font-weight:600; font-family:'Inter'; cursor:pointer; font-size:14px;
+    white-space:nowrap;
+  }
+  .search-btn:hover{ background:#f2b25c; }
+  .search-btn:focus-visible, .swap-btn:focus-visible{ outline:2px solid var(--amber); outline-offset:2px;}
+
+  /* ---------- split-flap board (results) ---------- */
+  .board-wrap{ padding:0 5vw 60px; max-width:1200px; margin:0 auto;}
+  .board-head{
+    display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px; margin-top:10px;
+    border-bottom:1px solid var(--line); padding-bottom:12px;
+  }
+  .board-head h3{ font-size:20px;}
+  .board-head span{ font-family:'IBM Plex Mono'; font-size:12px; color:var(--muted);}
+
+  .flap-row{
+    display:grid;
+    grid-template-columns: 90px 1fr 40px 1fr 130px 110px 100px;
+    gap:14px; align-items:center;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:16px 18px;
+    margin-bottom:10px;
+    animation:flapin .45s ease both;
+  }
+  @keyframes flapin{
+    from{ opacity:0; transform:translateY(-6px) scaleY(.92); }
+    to{ opacity:1; transform:none; }
+  }
+  @media (max-width:900px){
+    .flap-row{ grid-template-columns:1fr 1fr; grid-auto-rows:auto; row-gap:8px;}
+    .flap-row .status{ grid-column:1/-1; }
+  }
+  .flap-row .time{ font-family:'IBM Plex Mono'; font-size:19px; color:var(--amber); letter-spacing:1px;}
+  .flap-row .time small{ display:block; color:var(--muted); font-size:10px; letter-spacing:1.5px; margin-top:2px;}
+  .flap-row .city{ font-size:15px;}
+  .flap-row .city small{ display:block; color:var(--muted); font-family:'IBM Plex Mono'; font-size:11px; margin-top:2px;}
+  .flap-row .arrow{ color:var(--muted); text-align:center;}
+  .flap-row .train{ font-family:'IBM Plex Mono'; font-size:13px; color:var(--text);}
+  .flap-row .train small{ display:block; color:var(--muted); font-size:11px; margin-top:2px;}
+  .flap-row .price{ font-family:'IBM Plex Mono'; font-size:16px; text-align:right;}
+  .status{
+    font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:1px; text-align:center;
+    padding:5px 8px; border-radius:2px; justify-self:start;
+  }
+  .status.ontime{ color:var(--green); border:1px solid var(--green);}
+  .status.few{ color:var(--amber); border:1px solid var(--amber-dim);}
+  .status.full{ color:var(--signal); border:1px solid var(--signal);}
+  .book-btn{
+    background:transparent; border:1px solid var(--amber); color:var(--amber);
+    padding:9px 14px; border-radius:3px; font-family:'Inter'; font-weight:600; font-size:13px;
+    cursor:pointer; justify-self:end;
+  }
+  .book-btn:hover:not(:disabled){ background:var(--amber); color:var(--ink);}
+  .book-btn:disabled{ opacity:.35; cursor:not-allowed; border-color:var(--muted); color:var(--muted);}
+  .empty{ color:var(--muted); font-family:'IBM Plex Mono'; padding:40px 0; text-align:center; font-size:13px;}
+
+  /* ---------- modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(10,12,13,.78);
+    display:none; align-items:flex-start; justify-content:center;
+    padding:5vh 16px; overflow-y:auto; z-index:50;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    width:min(760px, 100%); padding:30px 30px 26px; position:relative;
+  }
+  .modal h3{ font-size:24px; margin-bottom:4px;}
+  .modal .sub{ color:var(--muted); font-size:13px; font-family:'IBM Plex Mono'; margin-bottom:22px;}
+  .close-x{
+    position:absolute; top:18px; right:18px; background:none; border:none; color:var(--muted);
+    font-size:20px; cursor:pointer; line-height:1;
+  }
+  .close-x:hover{ color:var(--amber); }
+
+  .seatmap-wrap{ display:grid; grid-template-columns: 1fr 220px; gap:26px;}
+  @media (max-width:640px){ .seatmap-wrap{ grid-template-columns:1fr; } }
+  .coach-label{ font-family:'IBM Plex Mono'; font-size:12px; color:var(--muted); margin-bottom:10px; letter-spacing:1px;}
+  .seatgrid{
+    display:grid; grid-template-columns: repeat(4, 42px); gap:8px 10px; justify-content:start;
+  }
+  .seat{
+    width:42px; height:38px; border-radius:4px 4px 8px 8px;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-family:'IBM Plex Mono'; font-size:11px;
+  }
+  .seat.aisle-gap{ background:transparent; border:none; cursor:default; }
+  .seat.taken{ background:#2a2020; border-color:var(--signal); color:var(--signal); cursor:not-allowed; opacity:.6;}
+  .seat.selected{ background:var(--amber); border-color:var(--amber); color:var(--ink); font-weight:600;}
+  .seat:not(.taken):not(.aisle-gap):hover{ border-color:var(--amber); color:var(--text);}
+  .legend{ display:flex; gap:16px; margin-top:16px; font-size:11px; color:var(--muted); font-family:'IBM Plex Mono';}
+  .legend i{ display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:5px; vertical-align:middle;}
+  .legend .l1{ background:var(--panel-2); border:1px solid var(--line);}
+  .legend .l2{ background:var(--amber);}
+  .legend .l3{ background:#2a2020; border:1px solid var(--signal);}
+
+  .summary-box{ border-left:1px dashed var(--line); padding-left:22px;}
+  .summary-box .row{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:10px; color:var(--muted);}
+  .summary-box .row b{ color:var(--text); font-family:'IBM Plex Mono'; font-weight:500;}
+  .summary-box .total{ border-top:1px solid var(--line); margin-top:10px; padding-top:12px; font-size:15px; color:var(--text);}
+  .summary-box .total b{ color:var(--amber); font-size:19px;}
+  .passenger-field{ margin-top:18px;}
+  .passenger-field label{ font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; display:block; margin-bottom:6px;}
+  .passenger-field input{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:9px 10px; border-radius:3px; font-family:'Inter'; font-size:14px;
+  }
+  .confirm-btn{
+    margin-top:18px; width:100%; background:var(--amber); color:var(--ink); border:none;
+    padding:12px; border-radius:3px; font-weight:700; cursor:pointer; font-size:14px;
+  }
+  .confirm-btn:hover{ background:#f2b25c;}
+  .confirm-btn:disabled{ background:var(--panel-2); color:var(--muted); cursor:not-allowed;}
+  .err{ color:var(--signal); font-size:12px; margin-top:8px; font-family:'IBM Plex Mono'; min-height:16px;}
+
+  /* ---------- ticket stub ---------- */
+  .ticket{
+    background:var(--cream); color:var(--ink); border-radius:6px; overflow:hidden;
+    display:grid; grid-template-columns: 1fr 150px; position:relative;
+  }
+  .ticket .main{ padding:26px 26px 22px; position:relative;}
+  .ticket .stub{
+    background:#e5dac3; padding:26px 18px; position:relative;
+    display:flex; flex-direction:column; justify-content:space-between; align-items:center;
+    border-left:2px dashed #b9ab8a;
+  }
+  .ticket .stub .qr{
+    width:84px; height:84px; background:
+      repeating-linear-gradient(0deg, var(--ink) 0 4px, transparent 4px 8px),
+      repeating-linear-gradient(90deg, var(--ink) 0 4px, transparent 4px 8px);
+    background-blend-mode:multiply; opacity:.85; border-radius:3px;
+  }
+  .ticket .stub .pnr{ font-family:'IBM Plex Mono'; font-weight:600; letter-spacing:2px; font-size:13px; margin-top:12px;}
+  .perf{
+    position:absolute; top:0; bottom:0; left:-8px; width:16px;
+    background-image: radial-gradient(circle, var(--bg) 5px, transparent 5.5px);
+    background-size: 16px 20px; background-repeat:repeat-y;
+  }
+  .ticket .eyebrow{ font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:2px; color:#7a6a49; text-transform:uppercase;}
+  .ticket h3.route{ font-size:26px; margin-top:6px; font-family:'DM Serif Display';}
+  .ticket .ticket-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:20px;}
+  .ticket .ticket-grid div span{ display:block; font-size:10px; letter-spacing:1.5px; color:#8a7a57; text-transform:uppercase;}
+  .ticket .ticket-grid div b{ font-family:'IBM Plex Mono'; font-size:15px;}
+  .ticket .pax{ margin-top:16px; font-size:14px; border-top:1px dashed #b9ab8a; padding-top:14px;}
+  .ticket .pax span{ color:#7a6a49; font-size:11px; letter-spacing:1px; text-transform:uppercase; display:block;}
+
+  .post-actions{ display:flex; gap:12px; margin-top:22px;}
+  .ghost-btn{
+    flex:1; background:transparent; border:1px solid var(--line); color:var(--text);
+    padding:11px; border-radius:3px; cursor:pointer; font-family:'Inter'; font-size:13px;
+  }
+  .ghost-btn:hover{ border-color:var(--amber); color:var(--amber);}
+
+  footer{ text-align:center; padding:30px 5vw 50px; color:var(--muted); font-size:12px; font-family:'IBM Plex Mono'; border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+
+<div class="railstripe"></div>
+<header class="top">
+  <div class="brand">
+    <div class="mark">R</div>
+    <div>
+      <h1>RailBook</h1>
+      <span>TAMIL NADU &amp; INDIA · RESERVATIONS</span>
+    </div>
+  </div>
+  <nav class="clock mono">
+    <span id="today-date">—</span>
+    <b id="live-clock">00:00:00</b>
+  </nav>
+</header>
+
+<section class="hero">
+  <h2>Find your platform. Reserve your seat.</h2>
+  <p class="lede">Search live departures across the network, pick an exact seat on a real coach map, and walk away with a proper ticket stub — not just a confirmation email.</p>
+
+  <form class="ticket-window" id="search-form">
+    <div class="searchgrid">
+      <div class="field">
+        <label for="from">From</label>
+        <select id="from" required></select>
+      </div>
+      <button type="button" class="swap-btn" id="swap-btn" title="Swap origin and destination" aria-label="Swap origin and destination">⇄</button>
+      <div class="field">
+        <label for="to">To</label>
+        <select id="to" required></select>
+      </div>
+      <div class="field">
+        <label for="date">Date</label>
+        <input type="date" id="date" required>
+      </div>
+      <div class="field">
+        <label for="pax">Passengers</label>
+        <select id="pax">
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+        </select>
+      </div>
+      <button type="submit" class="search-btn">Search trains</button>
+    </div>
+  </form>
+</section>
+
+<section class="board-wrap">
+  <div class="board-head">
+    <h3 id="board-title">Departures</h3>
+    <span id="board-meta"></span>
+  </div>
+  <div id="results"></div>
+</section>
+
+<footer>RAILBOOK DEMO SYSTEM · NO REAL TICKETS ARE ISSUED · BUILT WITH HTML, CSS &amp; JS</footer>
+
+<!-- Seat selection + passenger modal -->
+<div class="overlay" id="seat-overlay">
+  <div class="modal">
+    <button class="close-x" id="close-seat" aria-label="Close">✕</button>
+    <h3 id="seat-title">Choose your seat</h3>
+    <div class="sub" id="seat-sub"></div>
+    <div class="seatmap-wrap">
+      <div>
+        <div class="coach-label">COACH B3 — WINDOW · AISLE · AISLE · WINDOW</div>
+        <div class="seatgrid" id="seatgrid"></div>
+        <div class="legend">
+          <span><i class="l1"></i>Available</span>
+          <span><i class="l2"></i>Selected</span>
+          <span><i class="l3"></i>Taken</span>
+        </div>
+      </div>
+      <div class="summary-box">
+        <div class="row"><span>Route</span><b id="sum-route">—</b></div>
+        <div class="row"><span>Departs</span><b id="sum-time">—</b></div>
+        <div class="row"><span>Seats</span><b id="sum-seats">None selected</b></div>
+        <div class="row total"><span>Total</span><b id="sum-total">₹0</b></div>
+
+        <div class="passenger-field">
+          <label for="pname">Passenger name</label>
+          <input type="text" id="pname" placeholder="Full name as on ID">
+        </div>
+        <div class="passenger-field">
+          <label for="pemail">Email</label>
+          <input type="email" id="pemail" placeholder="you@example.com">
+        </div>
+        <div class="err" id="form-err"></div>
+        <button class="confirm-btn" id="confirm-btn" disabled>Confirm &amp; issue ticket</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ticket / confirmation modal -->
+<div class="overlay" id="ticket-overlay">
+  <div class="modal">
+    <button class="close-x" id="close-ticket" aria-label="Close">✕</button>
+    <h3>You're booked</h3>
+    <div class="sub">Keep this reference — it's your boarding pass.</div>
+    <div class="ticket" id="ticket-render"></div>
+    <div class="post-actions">
+      <button class="ghost-btn" id="print-btn">Print ticket</button>
+      <button class="ghost-btn" id="done-btn">Book another trip</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- data ---------------- */
+  var CITIES = ["Chennai","Coimbatore","Madurai","Tiruchirappalli","Salem","Tirunelveli","Vellore","Thanjavur","Erode","Tiruppur","Bengaluru","Mumbai","Delhi","Kolkata","Hyderabad"];
+  var COACH_ROWS = 8; // 4 seats per row (A B _ C D)
+  var SEAT_LETTERS = ["A","B","C","D"];
+  var state = {
+    results: [],
+    activeTrain: null,
+    selectedSeats: [],
+    takenSeats: {} // per train id -> array of seat codes
+  };
+
+  function $(id){ return document.getElementById(id); }
+
+  function fillCitySelects(){
+    var from = $("from"), to = $("to");
+    CITIES.forEach(function(c, i){
+      var o1 = document.createElement("option"); o1.value = c; o1.textContent = c;
+      var o2 = document.createElement("option"); o2.value = c; o2.textContent = c;
+      from.appendChild(o1); to.appendChild(o2);
+    });
+    from.value = CITIES[0];
+    to.value = CITIES[2];
+  }
+
+  function todayISO(){
+    var d = new Date();
+    var pad = function(n){ return String(n).padStart(2,"0"); };
+    return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  }
+
+  function updateClock(){
+    var d = new Date();
+    var pad = function(n){ return String(n).padStart(2,"0"); };
+    $("live-clock").textContent = pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+    $("today-date").textContent = d.toLocaleDateString(undefined,{ weekday:"short", month:"short", day:"numeric" });
+  }
+
+  /* ---------------- seeded pseudo-random generator (deterministic per search) ---------------- */
+  function seededRandom(seed){
+    var s = seed % 2147483647;
+    if (s <= 0) s += 2147483646;
+    return function(){
+      s = (s * 16807) % 2147483647;
+      return (s - 1) / 2147483646;
+    };
+  }
+  function hashStr(str){
+    var h = 0;
+    for (var i=0;i<str.length;i++){ h = (h<<5) - h + str.charCodeAt(i); h |= 0; }
+    return Math.abs(h) || 1;
+  }
+
+  function generateTrains(from, to, date){
+    var rnd = seededRandom(hashStr(from+"|"+to+"|"+date));
+    var count = 4 + Math.floor(rnd()*3); // 4-6 trains
+    var trains = [];
+    var hour = 5 + Math.floor(rnd()*3);
+    var classes = ["Superfast Express","Express","Intercity","Passenger","Vande Bharat"];
+    for (var i=0;i<count;i++){
+      hour += 1 + Math.floor(rnd()*3);
+      var startH = hour % 24;
+      var startM = Math.floor(rnd()*12)*5;
+      var durationH = 1 + Math.floor(rnd()*4);
+      var durationM = Math.floor(rnd()*12)*5;
+      var endTotal = startH*60+startM+durationH*60+durationM;
+      var endH = Math.floor(endTotal/60)%24, endM = endTotal%60;
+      var pad = function(n){ return String(n).padStart(2,"0"); };
+      var trainClass = classes[Math.floor(rnd()*classes.length)];
+      var number = String(12000 + Math.floor(rnd()*7999));
+      var basePrice = 245 + Math.floor(rnd()*1755);
+      var capacityUsed = Math.floor(rnd()*32); // out of 32 seats
+      var id = number + "-" + startH + startM;
+      trains.push({
+        id: id,
+        from: from, to: to, date: date,
+        depart: pad(startH)+":"+pad(startM),
+        arrive: pad(endH)+":"+pad(endM),
+        durationLabel: durationH+"h "+durationM+"m",
+        trainClass: trainClass,
+        number: number,
+        price: basePrice,
+        seatsTaken: capacityUsed
+      });
+    }
+    trains.sort(function(a,b){ return a.depart.localeCompare(b.depart); });
+    return trains;
+  }
+
+  function statusFor(train){
+    var free = 32 - train.seatsTaken;
+    if (free <= 0) return {cls:"full", label:"SOLD OUT"};
+    if (free <= 6) return {cls:"few", label: free + " LEFT"};
+    return {cls:"ontime", label:"ON TIME"};
+  }
+
+  function renderResults(from, to, date){
+    var wrap = $("results");
+    wrap.innerHTML = "";
+    $("board-title").textContent = from + " → " + to;
+    $("board-meta").textContent = new Date(date+"T00:00:00").toLocaleDateString(undefined,{ weekday:"long", month:"long", day:"numeric", year:"numeric" });
+
+    if (!state.results.length){
+      wrap.innerHTML = '<div class="empty">NO SERVICES FOUND FOR THIS ROUTE / DATE — TRY ANOTHER DATE</div>';
+      return;
+    }
+
+    state.results.forEach(function(train, idx){
+      var st = statusFor(train);
+      var row = document.createElement("div");
+      row.className = "flap-row";
+      row.style.animationDelay = (idx*0.05)+"s";
+      row.innerHTML =
+        '<div class="time">'+train.depart+'<small>DEPART</small></div>' +
+        '<div class="city">'+train.from+'<small>'+train.trainClass.toUpperCase()+'</small></div>' +
+        '<div class="arrow">→</div>' +
+        '<div class="city">'+train.to+'<small>ARR '+train.arrive+' · '+train.durationLabel+'</small></div>' +
+        '<div class="train">'+train.number+'<small>'+train.date+'</small></div>' +
+        '<div class="status '+st.cls+'">'+st.label+'</div>' +
+        '<div class="price">₹'+train.price+'</div>' +
+        '<button class="book-btn" data-id="'+train.id+'" '+(st.cls==="full"?"disabled":"")+'>'+(st.cls==="full"?"Full":"Select")+'</button>';
+      wrap.appendChild(row);
+    });
+
+    wrap.querySelectorAll(".book-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var train = state.results.find(function(t){ return t.id === btn.dataset.id; });
+        openSeatModal(train);
+      });
+    });
+  }
+
+  /* ---------------- search form ---------------- */
+  function doSearch(){
+    var from = $("from").value, to = $("to").value, date = $("date").value;
+    if (from === to){
+      $("board-title").textContent = "Origin and destination must differ";
+      $("results").innerHTML = "";
+      $("board-meta").textContent = "";
+      return;
+    }
+    state.results = generateTrains(from, to, date);
+    renderResults(from, to, date);
+    document.querySelector(".board-wrap").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+
+  $("search-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    doSearch();
+  });
+  $("swap-btn").addEventListener("click", function(){
+    var f = $("from").value;
+    $("from").value = $("to").value;
+    $("to").value = f;
+  });
+
+  /* ---------------- seat map ---------------- */
+  function seatsForTrain(train){
+    if (state.takenSeats[train.id]) return state.takenSeats[train.id];
+    var rnd = seededRandom(hashStr(train.id));
+    var taken = [];
+    var total = COACH_ROWS * SEAT_LETTERS.length;
+    var targetTaken = train.seatsTaken;
+    var pool = [];
+    for (var r=1;r<=COACH_ROWS;r++){
+      SEAT_LETTERS.forEach(function(l){ pool.push(r+l); });
+    }
+    // shuffle pool deterministically
+    for (var i=pool.length-1;i>0;i--){
+      var j = Math.floor(rnd()*(i+1));
+      var tmp = pool[i]; pool[i]=pool[j]; pool[j]=tmp;
+    }
+    taken = pool.slice(0, Math.min(targetTaken, total));
+    state.takenSeats[train.id] = taken;
+    return taken;
+  }
+
+  function openSeatModal(train){
+    state.activeTrain = train;
+    state.selectedSeats = [];
+    $("seat-title").textContent = train.number + " · " + train.trainClass;
+    $("seat-sub").textContent = train.from + " → " + train.to + " · " + train.date + " · departs " + train.depart;
+    $("sum-route").textContent = train.from + " → " + train.to;
+    $("sum-time").textContent = train.depart + " – " + train.arrive;
+    $("pname").value = "";
+    $("pemail").value = "";
+    $("form-err").textContent = "";
+    buildSeatGrid(train);
+    updateSummary();
+    $("seat-overlay").classList.add("open");
+  }
+
+  function buildSeatGrid(train){
+    var grid = $("seatgrid");
+    grid.innerHTML = "";
+    var taken = seatsForTrain(train);
+    for (var r=1; r<=COACH_ROWS; r++){
+      SEAT_LETTERS.forEach(function(letter, li){
+        var code = r+letter;
+        var seat = document.createElement("div");
+        seat.className = "seat";
+        seat.textContent = code;
+        seat.dataset.code = code;
+        if (taken.indexOf(code) !== -1){
+          seat.classList.add("taken");
+        } else {
+          seat.addEventListener("click", function(){ toggleSeat(this); });
+        }
+        grid.appendChild(seat);
+        if (li === 1){
+          var gap = document.createElement("div");
+          gap.className = "seat aisle-gap";
+          grid.appendChild(gap);
+        }
+      });
+    }
+  }
+
+  function toggleSeat(el){
+    var code = el.dataset.code;
+    var maxPax = parseInt($("pax").value, 10);
+    var idx = state.selectedSeats.indexOf(code);
+    if (idx !== -1){
+      state.selectedSeats.splice(idx,1);
+      el.classList.remove("selected");
+    } else {
+      if (state.selectedSeats.length >= maxPax){
+        $("form-err").textContent = "You selected "+maxPax+" passenger(s) — deselect a seat first, or increase passengers before searching.";
+        return;
+      }
+      state.selectedSeats.push(code);
+      el.classList.add("selected");
+      $("form-err").textContent = "";
+    }
+    updateSummary();
+  }
+
+  function updateSummary(){
+    var train = state.activeTrain;
+    var seats = state.selectedSeats;
+    $("sum-seats").textContent = seats.length ? seats.join(", ") : "None selected";
+    var total = train ? train.price * seats.length : 0;
+    $("sum-total").textContent = "₹" + total;
+    var canConfirm = seats.length > 0;
+    $("confirm-btn").disabled = !canConfirm;
+  }
+
+  $("confirm-btn").addEventListener("click", function(){
+    var name = $("pname").value.trim();
+    var email = $("pemail").value.trim();
+    var emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!name){ $("form-err").textContent = "Enter the passenger's name."; return; }
+    if (!emailOk){ $("form-err").textContent = "Enter a valid email address."; return; }
+    issueTicket(name, email);
+  });
+
+  function pnr(){
+    var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    var out = "";
+    for (var i=0;i<6;i++){ out += chars[Math.floor(Math.random()*chars.length)]; }
+    return out;
+  }
+
+  function issueTicket(name, email){
+    var train = state.activeTrain;
+    var code = pnr();
+    var seats = state.selectedSeats.slice();
+    var total = train.price * seats.length;
+
+    $("ticket-render").innerHTML =
+      '<div class="main">' +
+        '<div class="eyebrow">RailBook · Boarding Pass</div>' +
+        '<h3 class="route">'+train.from+' → '+train.to+'</h3>' +
+        '<div class="ticket-grid">' +
+          '<div><span>Train</span><b>'+train.number+'</b></div>' +
+          '<div><span>Date</span><b>'+train.date+'</b></div>' +
+          '<div><span>Depart</span><b>'+train.depart+'</b></div>' +
+          '<div><span>Arrive</span><b>'+train.arrive+'</b></div>' +
+          '<div><span>Class</span><b>'+train.trainClass+'</b></div>' +
+          '<div><span>Seat(s)</span><b>'+seats.join(", ")+'</b></div>' +
+        '</div>' +
+        '<div class="pax"><span>Passenger</span>'+escapeHTML(name)+' · '+escapeHTML(email)+'</div>' +
+      '</div>' +
+      '<div class="stub">' +
+        '<div class="perf"></div>' +
+        '<div class="qr" aria-hidden="true"></div>' +
+        '<div class="pnr">'+code+'<br><span style="font-weight:400;font-size:10px;letter-spacing:1px;">TOTAL ₹'+total+'</span></div>' +
+      '</div>';
+
+    // mark seats permanently taken
+    var takenList = state.takenSeats[train.id] || [];
+    state.takenSeats[train.id] = takenList.concat(seats);
+    train.seatsTaken = Math.min(32, train.seatsTaken + seats.length);
+
+    $("seat-overlay").classList.remove("open");
+    $("ticket-overlay").classList.add("open");
+    renderResults(train.from, train.to, train.date); // refresh availability
+  }
+
+  function escapeHTML(str){
+    var div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  /* ---------------- modal close handlers ---------------- */
+  function closeOverlay(el){ el.classList.remove("open"); }
+  $("close-seat").addEventListener("click", function(){ closeOverlay($("seat-overlay")); });
+  $("close-ticket").addEventListener("click", function(){ closeOverlay($("ticket-overlay")); });
+  $("done-btn").addEventListener("click", function(){ closeOverlay($("ticket-overlay")); });
+  $("print-btn").addEventListener("click", function(){ window.print(); });
+  [$("seat-overlay"), $("ticket-overlay")].forEach(function(ov){
+    ov.addEventListener("click", function(e){ if (e.target === ov) closeOverlay(ov); });
+  });
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape"){
+      closeOverlay($("seat-overlay"));
+      closeOverlay($("ticket-overlay"));
+    }
+  });
+
+  /* ---------------- init ---------------- */
+  fillCitySelects();
+  $("date").value = todayISO();
+  $("date").min = todayISO();
+  updateClock();
+  setInterval(updateClock, 1000);
+  doSearch();
+})();
+</script>
+</body>
+</html>
